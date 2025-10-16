@@ -1,0 +1,425 @@
+﻿Вот несколько способов пробежаться по результатам HTTP запроса в VBS и добавить строки в массив:
+
+Способ 1: Использование MSXML2.ServerXMLHTTP
+vbscript
+' Создаем объект для HTTP запроса
+Set http = CreateObject("MSXML2.ServerXMLHTTP")
+
+' Выполняем GET запрос
+http.Open "GET", "http://example.com/data", False
+http.Send
+
+' Проверяем успешность запроса
+If http.Status = 200 Then
+    ' Получаем ответ
+    Dim responseText
+    responseText = http.ResponseText
+    
+    ' Разбиваем текст на строки
+    Dim lines
+    lines = Split(responseText, vbCrLf)
+    
+    ' Создаем массив для результатов
+    Dim resultArray()
+    ReDim resultArray(UBound(lines))
+    
+    ' Проходим по всем строкам и добавляем в массив
+    Dim i
+    For i = 0 To UBound(lines)
+        ' Убираем лишние пробелы и добавляем в массив
+        resultArray(i) = Trim(lines(i))
+    Next
+    
+    ' Выводим результат
+    For i = 0 To UBound(resultArray)
+        If resultArray(i) <> "" Then
+            WScript.Echo "Строка " & i & ": " & resultArray(i)
+        End If
+    Next
+Else
+    WScript.Echo "Ошибка HTTP: " & http.Status
+End If
+
+' Очищаем объект
+Set http = Nothing
+Способ 2: С фильтрацией пустых строк
+vbscript
+Set http = CreateObject("MSXML2.ServerXMLHTTP")
+http.Open "GET", "http://example.com/data", False
+http.Send
+
+If http.Status = 200 Then
+    Dim responseText, lines, nonEmptyLines()
+    responseText = http.ResponseText
+    lines = Split(responseText, vbCrLf)
+    
+    ' Сначала подсчитаем непустые строки
+    Dim count, i
+    count = 0
+    For i = 0 To UBound(lines)
+        If Trim(lines(i)) <> "" Then
+            count = count + 1
+        End If
+    Next
+    
+    ' Создаем массив нужного размера
+    ReDim nonEmptyLines(count - 1)
+    
+    ' Заполняем массив непустыми строками
+    Dim j
+    j = 0
+    For i = 0 To UBound(lines)
+        Dim trimmedLine
+        trimmedLine = Trim(lines(i))
+        If trimmedLine <> "" Then
+            nonEmptyLines(j) = trimmedLine
+            j = j + 1
+        End If
+    Next
+    
+    ' Выводим результат
+    For i = 0 To UBound(nonEmptyLines)
+        WScript.Echo "Элемент " & i & ": " & nonEmptyLines(i)
+    Next
+Else
+    WScript.Echo "Ошибка: " & http.Status
+End If
+
+Set http = Nothing
+Способ 3: С обработкой JSON ответа
+vbscript
+' Если ответ в формате JSON
+Set http = CreateObject("MSXML2.ServerXMLHTTP")
+http.Open "GET", "http://example.com/api/data", False
+http.Send
+
+If http.Status = 200 Then
+    Dim jsonResponse
+    jsonResponse = http.ResponseText
+    
+    ' Простой парсинг JSON (для сложных JSON нужен парсер)
+    Dim lines
+    lines = Split(jsonResponse, vbCrLf)
+    
+    Dim dataArray()
+    ReDim dataArray(UBound(lines))
+    
+    For i = 0 To UBound(lines)
+        dataArray(i) = Replace(Replace(Trim(lines(i)), Chr(34), ""), ",", "")
+    Next
+    
+    ' Выводим массив
+    For i = 0 To UBound(dataArray)
+        If dataArray(i) <> "" Then
+            WScript.Echo dataArray(i)
+        End If
+    Next
+End If
+
+Set http = Nothing
+Способ 4: С использованием WinHttp.WinHttpRequest
+vbscript
+' Альтернативный HTTP клиент
+Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
+http.Open "GET", "http://example.com/data", False
+http.Send
+
+If http.Status = 200 Then
+    Dim responseText, lines, resultArray
+    responseText = http.ResponseText
+    
+    ' Разбиваем на строки
+    lines = Split(responseText, vbNewLine)
+    
+    ' Инициализируем массив
+    ReDim resultArray(UBound(lines))
+    
+    ' Заполняем массив
+    For i = 0 To UBound(lines)
+        resultArray(i) = Trim(lines(i))
+    Next
+    
+    ' Демонстрация работы с массивом
+    WScript.Echo "Всего строк: " & (UBound(resultArray) + 1)
+    For i = 0 To UBound(resultArray)
+        If Len(resultArray(i)) > 0 Then
+            WScript.Echo "[" & i & "] " & resultArray(i)
+        End If
+    Next
+End If
+
+Set http = Nothing
+Способ 5: С дополнительной обработкой данных
+vbscript
+Function GetHttpData(url)
+    On Error Resume Next
+    
+    Set http = CreateObject("MSXML2.ServerXMLHTTP")
+    http.Open "GET", url, False
+    http.Send
+    
+    If http.Status = 200 Then
+        GetHttpData = http.ResponseText
+    Else
+        GetHttpData = ""
+    End If
+    
+    Set http = Nothing
+End Function
+
+' Основной код
+Dim url
+url = "http://example.com/data.txt"
+
+Dim rawData, lines, processedArray
+rawData = GetHttpData(url)
+
+If rawData <> "" Then
+    lines = Split(rawData, vbCrLf)
+    
+    ' Создаем массив для обработанных данных
+    ReDim processedArray(UBound(lines))
+    
+    ' Обрабатываем каждую строку
+    For i = 0 To UBound(lines)
+        Dim processedLine
+        processedLine = Trim(lines(i))
+        
+        ' Пример дополнительной обработки
+        If InStr(processedLine, "ERROR") > 0 Then
+            processedLine = "ВНИМАНИЕ: " & processedLine
+        End If
+        
+        processedArray(i) = processedLine
+    Next
+    
+    ' Выводим результат
+    For i = 0 To UBound(processedArray)
+        If processedArray(i) <> "" Then
+            WScript.Echo processedArray(i)
+        End If
+    Next
+Else
+    WScript.Echo "Не удалось получить данные"
+End If
+Ключевые моменты:
+MSXML2.ServerXMLHTTP - основной объект для HTTP запросов
+
+Split() - разбивает текст на массив строк
+
+Trim() - убирает лишние пробелы
+
+UBound() - получает верхнюю границу массива
+
+ReDim - изменяет размер массива
+
+----------------------------------------------------------
+--------------------------------------------------------------
+
+Способ 1: Базовая обработка raw ответа
+vbscript
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.Open "GET", "http://example.com/raw-data", False
+http.Send
+
+If http.Status = 200 Then
+    ' Получаем raw response body как массив байт
+    Dim rawBytes
+    rawBytes = http.ResponseBody
+    
+    ' Преобразуем байты в строку (для текстовых данных)
+    Dim stream
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1 ' adTypeBinary
+    stream.Open
+    stream.Write rawBytes
+    stream.Position = 0
+    stream.Type = 2 ' adTypeText
+    stream.Charset = "utf-8" ' или другая кодировка
+    Dim rawText
+    rawText = stream.ReadText
+    stream.Close
+    
+    ' Разбиваем на строки
+    Dim lines
+    lines = Split(rawText, vbCrLf)
+    
+    Dim resultArray()
+    ReDim resultArray(UBound(lines))
+    
+    For i = 0 To UBound(lines)
+        resultArray(i) = lines(i)
+    Next
+    
+    ' Выводим результат
+    WScript.Echo "Raw данные получены. Строк: " & (UBound(resultArray) + 1)
+    For i = 0 To UBound(resultArray)
+        WScript.Echo "[" & i & "] " & resultArray(i)
+    Next
+Else
+    WScript.Echo "Ошибка HTTP: " & http.Status
+End If
+Способ 2: Работа непосредственно с бинарными данными
+vbscript
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.Open "GET", "http://example.com/binary-data", False
+http.Send
+
+If http.Status = 200 Then
+    ' Получаем raw bytes
+    Dim byteArray
+    byteArray = http.ResponseBody
+    
+    ' Создаем массив для хранения hex представления
+    Dim hexArray()
+    ReDim hexArray(UBound(byteArray))
+    
+    ' Конвертируем каждый байт в hex
+    For i = 0 To UBound(byteArray)
+        hexArray(i) = Right("0" & Hex(byteArray(i)), 2)
+    Next
+    
+    ' Выводим первые 100 байт в hex
+    WScript.Echo "Первые 100 байт (HEX):"
+    For i = 0 To 99
+        If i <= UBound(hexArray) Then
+            WScript.Echo "Байт " & i & ": " & hexArray(i)
+        End If
+    Next
+End If
+Способ 3: Обработка с определением типа контента
+vbscript
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.Open "GET", "http://example.com/data", False
+http.Send
+
+If http.Status = 200 Then
+    Dim contentType
+    contentType = LCase(http.getResponseHeader("Content-Type"))
+    
+    Dim dataArray()
+    
+    If InStr(contentType, "text/") > 0 Or InStr(contentType, "json") > 0 Or InStr(contentType, "xml") > 0 Then
+        ' Текстовые данные
+        Dim rawText
+        rawText = http.ResponseText
+        
+        Dim lines
+        lines = Split(rawText, vbCrLf)
+        ReDim dataArray(UBound(lines))
+        
+        For i = 0 To UBound(lines)
+            dataArray(i) = "TEXT: " & Trim(lines(i))
+        Next
+        
+    Else
+        ' Бинарные данные
+        Dim rawBytes
+        rawBytes = http.ResponseBody
+        ReDim dataArray(UBound(rawBytes))
+        
+        For i = 0 To UBound(rawBytes)
+            dataArray(i) = "BYTE[" & i & "]: " & rawBytes(i) & " (0x" & Right("0" & Hex(rawBytes(i)), 2) & ")"
+        Next
+    End If
+    
+    ' Выводим результат (первые 50 элементов)
+    WScript.Echo "Тип контента: " & contentType
+    WScript.Echo "Всего элементов: " & (UBound(dataArray) + 1)
+    
+    Dim displayCount
+    displayCount = 50
+    If UBound(dataArray) < displayCount Then displayCount = UBound(dataArray)
+    
+    For i = 0 To displayCount
+        WScript.Echo dataArray(i)
+    Next
+End If
+Способ 4: Сохранение raw данных в файл
+vbscript
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.Open "GET", "http://example.com/raw-file", False
+http.Send
+
+If http.Status = 200 Then
+    ' Получаем raw данные
+    Dim rawData
+    rawData = http.ResponseBody
+    
+    ' Сохраняем в файл
+    Dim stream
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1 ' adTypeBinary
+    stream.Open
+    stream.Write rawData
+    stream.SaveToFile "C:\temp\raw_download.dat", 2 ' adSaveCreateOverWrite
+    stream.Close
+    
+    ' Создаем массив с информацией о файле
+    Dim infoArray(3)
+    infoArray(0) = "Размер данных: " & (UBound(rawData) + 1) & " байт"
+    infoArray(1) = "Сохранено в: C:\temp\raw_download.dat"
+    infoArray(2) = "Статус: Успешно"
+    infoArray(3) = "Первый байт: " & rawData(0)
+    
+    For i = 0 To UBound(infoArray)
+        WScript.Echo infoArray(i)
+    Next
+End If
+Способ 5: Обработка с разными кодировками
+vbscript
+Function GetRawTextFromBytes(bytes, charset)
+    On Error Resume Next
+    Dim stream
+    Set stream = CreateObject("ADODB.Stream")
+    stream.Type = 1 ' adTypeBinary
+    stream.Open
+    stream.Write bytes
+    stream.Position = 0
+    stream.Type = 2 ' adTypeText
+    stream.Charset = charset
+    GetRawTextFromBytes = stream.ReadText
+    stream.Close
+End Function
+
+' Основной код
+Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+http.Open "GET", "http://example.com/raw-data", False
+http.Send
+
+If http.Status = 200 Then
+    Dim rawBytes
+    rawBytes = http.ResponseBody
+    
+    ' Пробуем разные кодировки
+    Dim encodings, linesArray
+    encodings = Array("utf-8", "windows-1251", "iso-8859-1")
+    
+    ReDim linesArray(UBound(encodings))
+    
+    For i = 0 To UBound(encodings)
+        Dim decodedText
+        decodedText = GetRawTextFromBytes(rawBytes, encodings(i))
+        
+        If decodedText <> "" Then
+            Dim tempLines
+            tempLines = Split(decodedText, vbCrLf)
+            linesArray(i) = "Кодировка " & encodings(i) & ": " & UBound(tempLines) + 1 & " строк"
+        Else
+            linesArray(i) = "Кодировка " & encodings(i) & ": не удалось декодировать"
+        End If
+    Next
+    
+    ' Выводим результаты по кодировкам
+    For i = 0 To UBound(linesArray)
+        WScript.Echo linesArray(i)
+    Next
+End If
+Ключевые особенности работы с raw данными:
+ResponseBody - возвращает массив байт (Variant array of bytes)
+
+ResponseText - автоматически конвертирует в строку (может быть проблем с кодировкой)
+
+ADODB.Stream - для ручного контроля над кодировкой
+
+Массив байт - индексируется от 0 до UBound(byteArray)
