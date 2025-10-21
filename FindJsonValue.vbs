@@ -177,3 +177,27 @@ WScript.Echo "Фамилия: " & GetJsonValue("test.json", "lastName")
 WScript.Echo "Возраст: " & GetJsonValue("test.json", "age")
 WScript.Echo "Работает: " & GetJsonValue("test.json", "isEmployed")
 WScript.Echo "Несуществующий ключ: " & GetJsonValue("test.json", "city")
+
+-------------------------------------------------------------------------------
+
+function Get-ValueFromJsonFile {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Key
+    )
+    
+    try {
+        # Преобразуем JSON-файл в объект PowerShell
+        $jsonObject = Get-Content -Path $FilePath -Raw | ConvertFrom-Json
+        
+        # Получаем значение свойства
+        return $jsonObject.$Key
+        
+    } catch {
+        Write-Error "Ошибка при чтении JSON-файла: $_"
+        return $null
+    }
+}
