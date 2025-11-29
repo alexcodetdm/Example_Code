@@ -3314,3 +3314,264 @@ bash
 ls -la CSide.ComAdapter.Demo/bin/Debug/
 
 # Должен быть файл CSide.ComAdapter.Demo.exe
+
+--999
+1. Исправляем CSide.ComAdapter.csproj
+Замените содержимое CSide.ComAdapter/CSide.ComAdapter.csproj на:
+
+xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{12345678-1234-1234-1234-123456789ABC}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>CSide.ComAdapter</RootNamespace>
+    <AssemblyName>CSide.ComAdapter</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Interfaces\ICSideComAdapter.cs" />
+    <Compile Include="Services\CSideComAdapter.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
+2. Исправляем CSide.ComAdapter.Demo.csproj
+Замените содержимое CSide.ComAdapter.Demo/CSide.ComAdapter.Demo.csproj на:
+
+xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{12345678-1234-1234-1234-123456789ABD}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>CSide.ComAdapter.Demo</RootNamespace>
+    <AssemblyName>CSide.ComAdapter.Demo</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CSide.ComAdapter\CSide.ComAdapter.csproj">
+      <Project>{12345678-1234-1234-1234-123456789ABC}</Project>
+      <Name>CSide.ComAdapter</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
+3. Убедитесь что есть файл AssemblyInfo.cs
+CSide.ComAdapter/Properties/AssemblyInfo.cs:
+
+csharp
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+[assembly: AssemblyTitle("CSide.ComAdapter")]
+[assembly: AssemblyDescription("")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("CSide.ComAdapter")]
+[assembly: AssemblyCopyright("Copyright ©  2024")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+
+[assembly: ComVisible(false)]
+
+[assembly: Guid("12345678-1234-1234-1234-123456789ABC")]
+
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
+CSide.ComAdapter.Demo/Properties/AssemblyInfo.cs:
+
+csharp
+using System.Reflection;
+using System.Runtime.InteropServices;
+
+[assembly: AssemblyTitle("CSide.ComAdapter.Demo")]
+[assembly: AssemblyDescription("")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("CSide.ComAdapter.Demo")]
+[assembly: AssemblyCopyright("Copyright ©  2024")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+
+[assembly: ComVisible(false)]
+
+[assembly: Guid("12345678-1234-1234-1234-123456789ABD")]
+
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
+4. Упрощенная версия без сложных зависимостей
+Если все еще есть ошибки, создайте упрощенные .csproj файлы:
+
+CSide.ComAdapter/CSide.ComAdapter.csproj (упрощенный):
+
+xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{12345678-1234-1234-1234-123456789ABC}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>CSide.ComAdapter</RootNamespace>
+    <AssemblyName>CSide.ComAdapter</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Interfaces\ICSideComAdapter.cs" />
+    <Compile Include="Services\CSideComAdapter.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+</Project>
+5. Создайте новый solution файл
+CSideComAdapter.sln:
+
+text
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSide.ComAdapter", "CSide.ComAdapter\CSide.ComAdapter.csproj", "{12345678-1234-1234-1234-123456789ABC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSide.ComAdapter.Demo", "CSide.ComAdapter.Demo\CSide.ComAdapter.Demo.csproj", "{12345678-1234-1234-1234-123456789ABD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{12345678-1234-1234-1234-123456789ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12345678-1234-1234-1234-123456789ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12345678-1234-1234-1234-123456789ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12345678-1234-1234-1234-123456789ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12345678-1234-1234-1234-123456789ABD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12345678-1234-1234-1234-123456789ABD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12345678-1234-1234-1234-123456789ABD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12345678-1234-1234-1234-123456789ABD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+6. Попробуйте собрать снова
+bash
+& "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe" CSideComAdapter.sln /p:Configuration=Debug
+7. Если все еще ошибка - используйте прямой компилятор
+Создайте direct-build.bat:
+
+bat
+@echo off
+echo Building with direct compiler...
+
+set csc="C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+
+echo Step 1: Building CSide.ComAdapter...
+%csc% /target:library /out:CSide.ComAdapter\bin\Debug\CSide.ComAdapter.dll ^
+ CSide.ComAdapter\Interfaces\ICSideComAdapter.cs ^
+ CSide.ComAdapter\Services\CSideComAdapter.cs
+
+if errorlevel 1 (
+    echo Error building CSide.ComAdapter
+    pause
+    exit /b 1
+)
+
+echo Step 2: Building Demo...
+%csc% /target:exe /out:CSide.ComAdapter.Demo\bin\Debug\CSide.ComAdapter.Demo.exe ^
+ CSide.ComAdapter.Demo\Program.cs ^
+ /reference:CSide.ComAdapter\bin\Debug\CSide.ComAdapter.dll
+
+if errorlevel 1 (
+    echo Error building Demo
+    pause
+    exit /b 1
+)
+
+echo Build successful!
+echo Running application...
+CSide.ComAdapter.Demo\bin\Debug\CSide.ComAdapter.Demo.exe
+
+pause
