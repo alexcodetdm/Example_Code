@@ -3171,3 +3171,57 @@ ICSideComAdapter.cs → в папку Interfaces/
 CSideComAdapter.cs → в папку Services/
 
 Program.cs → в папку CSide.ComAdapter.Demo/
+
+--888
+1. Установите правильное расширение
+Нажмите "Install Extensions for C#" и установите:
+
+C# от Microsoft (должно быть уже установлено)
+
+C# Extensions от JosKreatives
+
+.NET Extension Pack
+
+2. Обновите launch.json для .NET Framework
+Замените содержимое файла .vscode/launch.json:
+
+json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch .NET Framework Demo",
+            "type": "clr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/CSide.ComAdapter.Demo/bin/Debug/CSide.ComAdapter.Demo.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}
+3. Альтернативный launch.json (более надежный)
+json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug C/SIDE Demo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "CSide.ComAdapter.Demo/bin/Debug/CSide.ComAdapter.Demo.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "env": {
+                "COMPLUS_Version": "v4.0.30319"
+            }
+        }
+    ]
+}
