@@ -1222,3 +1222,586 @@ private void LogError(Exception ex, string message, params object[] args)
 {
     _logger?.LogError(ex, message, args);
 }
+
+---4444
+1. Пересоздаем проекты под .NET Framework 4.7.2
+bash
+# Удаляем старые проекты и создаем новые
+cd CSideComAdapter
+
+# Удаляем старые проекты
+rmdir /s /q CSide.ComAdapter
+rmdir /s /q CSide.ComAdapter.Demo
+
+# Создаем новые проекты для .NET Framework
+dotnet new classlib -f net472 -n CSide.ComAdapter
+dotnet new console -f net472 -n CSide.ComAdapter.Demo
+
+# Добавляем в solution
+dotnet sln add CSide.ComAdapter/CSide.ComAdapter.csproj
+dotnet sln add CSide.ComAdapter.Demo/CSide.ComAdapter.Demo.csproj
+
+# Добавляем reference
+dotnet add CSide.ComAdapter.Demo/CSide.ComAdapter.Demo.csproj reference CSide.ComAdapter/CSide.ComAdapter.csproj
+2. Обновляем файлы проектов
+CSide.ComAdapter.csproj:
+xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Web.Services" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>
+CSide.ComAdapter.Demo.csproj:
+xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CSide.ComAdapter\CSide.ComAdapter.csproj" />
+  </ItemGroup>
+
+</Project>
+3. Адаптируем код для .NET Framework 4.7.2
+Interfaces/ICSideComAdapter.cs:
+csharp
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using CSide.ComAdapter.Models;
+
+namespace CSide.ComAdapter.Interfaces
+{
+    public interface ICSideComAdapter : IDisposable
+    {
+        bool IsConnected { get; }
+        
+        Task<bool> ConnectAsync(string server, string database);
+        Task DisconnectAsync();
+        
+        // Работа с объектами C/SIDE
+        Task<bool> ImportObjectsAsync(string filePath);
+        Task<bool> ExportObjectsAsync(string filePath, int[] objectIds = null);
+        Task<bool> CompileObjectAsync(int objectType, int objectId);
+        Task<bool> CompileAllObjectsAsync();
+        
+        // Работа с данными
+        Task<dynamic> GetRecordAsync(string tableName, string filterField, object filterValue);
+        Task<IEnumerable<dynamic>> GetRecordsAsync(string tableName, string filter = "");
+        Task<bool> InsertRecordAsync(string tableName, dynamic record);
+        Task<bool> ModifyRecordAsync(dynamic record);
+        Task<bool> DeleteRecordAsync(dynamic record);
+    }
+}
+Services/CSideComAdapter.cs:
+csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using CSide.ComAdapter.Interfaces;
+using CSide.ComAdapter.Models;
+
+namespace CSide.ComAdapter.Services
+{
+    public class CSideComAdapter : ICSideComAdapter
+    {
+        private readonly ILogger<CSideComAdapter> _logger;
+        private dynamic _csideApp;
+        private bool _disposed = false;
+
+        public bool IsConnected { get; private set; }
+
+        public CSideComAdapter(ILogger<CSideComAdapter> logger)
+        {
+            _logger = logger;
+        }
+
+        public Task<bool> ConnectAsync(string server, string database)
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    LogInformation("Подключение к C/SIDE: {0}, {1}", server, database);
+                    
+                    Type csideType = Type.GetTypeFromProgID("Navision.Application");
+                    if (csideType == null)
+                    {
+                        LogError("COM тип 'Navision.Application' не найден");
+                        return false;
+                    }
+
+                    _csideApp = Activator.CreateInstance(csideType);
+                    _csideApp.Connect(server, database);
+                    
+                    IsConnected = true;
+                    LogInformation("Успешно подключено к C/SIDE");
+                    return true;
+                }
+                catch (COMException ex)
+                {
+                    LogError("COM ошибка при подключении к C/SIDE: {0}", ex.Message);
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка при подключении к C/SIDE: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task DisconnectAsync()
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    if (IsConnected && _csideApp != null)
+                    {
+                        _csideApp.Disconnect();
+                        _csideApp = null;
+                        IsConnected = false;
+                        LogInformation("Отключено от C/SIDE");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка при отключении от C/SIDE: {0}", ex.Message);
+                }
+            });
+        }
+
+        public Task<bool> ExportObjectsAsync(string filePath, int[] objectIds = null)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    dynamic objectManager = _csideApp.ActiveSession.Database.Objects;
+                    
+                    if (objectIds != null && objectIds.Length > 0)
+                    {
+                        foreach (int objectId in objectIds)
+                        {
+                            objectManager.Export(objectId, filePath, true);
+                        }
+                    }
+                    else
+                    {
+                        objectManager.Export(0, filePath, false);
+                    }
+                    
+                    LogInformation("C/SIDE объекты экспортированы в {0}", filePath);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка экспорта C/SIDE объектов: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<bool> ImportObjectsAsync(string filePath)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    dynamic objectManager = _csideApp.ActiveSession.Database.Objects;
+                    int importedCount = objectManager.Import(filePath);
+                    
+                    LogInformation("Импортировано C/SIDE объектов: {0}", importedCount);
+                    return importedCount > 0;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка импорта C/SIDE объектов: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<bool> CompileObjectAsync(int objectType, int objectId)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    dynamic objectManager = _csideApp.ActiveSession.Database.Objects;
+                    bool success = objectManager.Compile(objectType, objectId);
+                    
+                    if (success)
+                        LogInformation("C/SIDE объект {0}/{1} скомпилирован", objectType, objectId);
+                    else
+                        LogWarning("Ошибка компиляции C/SIDE объекта {0}/{1}", objectType, objectId);
+                    
+                    return success;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка компиляции C/SIDE объекта: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<bool> CompileAllObjectsAsync()
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    dynamic objectManager = _csideApp.ActiveSession.Database.Objects;
+                    objectManager.CompileAll();
+                    
+                    LogInformation("Все C/SIDE объекты скомпилированы");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка компиляции всех C/SIDE объектов: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<dynamic> GetRecordAsync(string tableName, string filterField, object filterValue)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    dynamic record = _csideApp.ActiveSession.Database.DataSet(tableName);
+                    record.SetFilter(filterField, filterValue.ToString());
+                    
+                    if (record.FindFirst())
+                        return record;
+                    
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка получения записи из {0}: {1}", tableName, ex.Message);
+                    return null;
+                }
+            });
+        }
+
+        public Task<IEnumerable<dynamic>> GetRecordsAsync(string tableName, string filter = "")
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    var records = new List<dynamic>();
+                    dynamic record = _csideApp.ActiveSession.Database.DataSet(tableName);
+                    
+                    if (!string.IsNullOrEmpty(filter))
+                    {
+                        record.SetFilter(filter);
+                    }
+                    
+                    if (record.FindSet())
+                    {
+                        do
+                        {
+                            records.Add(record);
+                        } 
+                        while (record.FindNext());
+                    }
+                    
+                    LogInformation("Получено {0} записей из {1}", records.Count, tableName);
+                    return records.AsEnumerable();
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка получения записей из {0}: {1}", tableName, ex.Message);
+                    return Enumerable.Empty<dynamic>();
+                }
+            });
+        }
+
+        public Task<bool> InsertRecordAsync(string tableName, dynamic record)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    record.Insert();
+                    LogInformation("Запись добавлена в {0}", tableName);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка добавления записи в {0}: {1}", tableName, ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<bool> ModifyRecordAsync(dynamic record)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    record.Modify();
+                    LogInformation("Запись изменена");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка изменения записи: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        public Task<bool> DeleteRecordAsync(dynamic record)
+        {
+            if (!IsConnected || _csideApp == null) 
+                throw new InvalidOperationException("Не подключено к C/SIDE");
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    record.Delete();
+                    LogInformation("Запись удалена");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogError("Ошибка удаления записи: {0}", ex.Message);
+                    return false;
+                }
+            });
+        }
+
+        // Вспомогательные методы для логирования
+        private void LogInformation(string message, params object[] args)
+        {
+            if (_logger != null)
+                _logger.LogInformation(message, args);
+            else
+                Console.WriteLine("[INFO] " + string.Format(message, args));
+        }
+
+        private void LogWarning(string message, params object[] args)
+        {
+            if (_logger != null)
+                _logger.LogWarning(message, args);
+            else
+                Console.WriteLine("[WARN] " + string.Format(message, args));
+        }
+
+        private void LogError(string message, params object[] args)
+        {
+            if (_logger != null)
+                _logger.LogError(message, args);
+            else
+                Console.WriteLine("[ERROR] " + string.Format(message, args));
+        }
+
+        private void LogError(Exception ex, string message, params object[] args)
+        {
+            if (_logger != null)
+                _logger.LogError(ex, message, args);
+            else
+                Console.WriteLine("[ERROR] " + string.Format(message, args) + " | Exception: " + ex.Message);
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                try
+                {
+                    DisconnectAsync().Wait(5000);
+                }
+                catch { }
+
+                if (_csideApp != null)
+                {
+                    try
+                    {
+                        Marshal.ReleaseComObject(_csideApp);
+                    }
+                    catch { }
+                    _csideApp = null;
+                }
+                _disposed = true;
+            }
+        }
+    }
+}
+Examples/DemoExample.cs:
+csharp
+using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using CSide.ComAdapter.Interfaces;
+using CSide.ComAdapter.Services;
+
+namespace CSide.ComAdapter.Examples
+{
+    public class DemoExample
+    {
+        public static async Task RunDemo()
+        {
+            Console.WriteLine("Запуск C/SIDE демо для .NET Framework 4.7.2...");
+
+            // Упрощенная версия без сложных зависимостей
+            var csideAdapter = new CSideComAdapter(null);
+
+            try
+            {
+                // Подключение к C/SIDE
+                Console.WriteLine("Подключение к C/SIDE...");
+                bool connected = await csideAdapter.ConnectAsync("localhost", "CSIDE_DEMO");
+                if (!connected)
+                {
+                    Console.WriteLine("Не удалось подключиться к C/SIDE");
+                    return;
+                }
+
+                Console.WriteLine("Успешно подключено к C/SIDE");
+
+                // Экспорт C/SIDE объектов
+                Console.WriteLine("Экспорт объектов...");
+                await csideAdapter.ExportObjectsAsync(@"C:\cside_export.txt");
+                Console.WriteLine("Экспорт объектов завершен");
+                
+                // Компиляция C/SIDE объектов
+                Console.WriteLine("Компиляция объектов...");
+                await csideAdapter.CompileAllObjectsAsync();
+                Console.WriteLine("Компиляция объектов завершена");
+                
+                Console.WriteLine("C/SIDE демо завершено успешно");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка в C/SIDE демо: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+            }
+            finally
+            {
+                await csideAdapter.DisconnectAsync();
+                Console.WriteLine("Отключено от C/SIDE");
+                csideAdapter.Dispose();
+            }
+        }
+    }
+}
+Program.cs в демо-проекте:
+csharp
+using System;
+using System.Threading.Tasks;
+using CSide.ComAdapter.Examples;
+
+namespace CSide.ComAdapter.Demo
+{
+    class Program
+    {
+        static async Task Main(string[] args)
+        {
+            Console.WriteLine("C/SIDE COM Adapter Demo для .NET Framework 4.7.2");
+            Console.WriteLine("=================================================");
+
+            await DemoExample.RunDemo();
+
+            Console.WriteLine("Нажмите любую клавишу для выхода...");
+            Console.ReadKey();
+        }
+    }
+}
+4. Создаем структуру папок
+bash
+# В папке CSide.ComAdapter создаем структуру
+cd CSide.ComAdapter
+mkdir Models
+mkdir Interfaces
+mkdir Services
+mkdir Examples
+5. Собираем проект
+bash
+# Возвращаемся в корневую директорию
+cd ..
+
+# Восстанавливаем пакеты
+dotnet restore
+
+# Собираем проект
+dotnet build
+
+# Запускаем демо
+dotnet run --project CSide.ComAdapter.Demo
+6. Альтернатива: создание через Visual Studio
+Если возникают проблемы с .NET SDK, можно создать проекты через Visual Studio:
+
+Создайте Class Library (.NET Framework) проект
+
+Целевая версия: .NET Framework 4.7.2
+
+Добавьте NuGet пакеты через Package Manager Console:
+
+text
+Install-Package Microsoft.Extensions.DependencyInjection -Version 5.0.2
+Install-Package Microsoft.Extensions.Logging -Version 5.0.0
+Install-Package Microsoft.Extensions.Logging.Console -Version 5.0.0
