@@ -974,3 +974,251 @@ cd CSideComAdapter
 dotnet sln remove CSide.ComAdapter.Tests/CSide.ComAdapter.Tests.csproj
 rmdir /s /q CSide.ComAdapter.Tests
 dotnet build
+
+--333
+1. Добавляем необходимые пакеты в основной проект
+bash
+# Переходим в папку основного проекта
+cd CSide.ComAdapter
+
+# Добавляем пакеты для Dependency Injection и Logging
+dotnet add package Microsoft.Extensions.DependencyInjection
+dotnet add package Microsoft.Extensions.Logging
+dotnet add package Microsoft.Extensions.Logging.Console
+dotnet add package Microsoft.Extensions.Hosting
+2. Исправляем файл DemoExample.cs
+csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using CSide.ComAdapter.Interfaces;
+using CSide.ComAdapter.Services;
+
+namespace CSide.ComAdapter.Examples
+{
+    public class DemoExample
+    {
+        public static async Task RunDemo()
+        {
+            // Настройка DI
+            var services = new ServiceCollection();
+            
+            // Добавляем logging
+            services.AddLogging(builder => 
+            {
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
+            
+            services.AddSingleton<ICSideComAdapter, CSideComAdapter>();
+            
+            var serviceProvider = services.BuildServiceProvider();
+            var logger = serviceProvider.GetRequiredService<ILogger<DemoExample>>();
+            var csideAdapter = serviceProvider.GetRequiredService<ICSideComAdapter>();
+
+            try
+            {
+                logger.LogInformation("Запуск C/SIDE демо...");
+
+                // Подключение к C/SIDE
+                bool connected = await csideAdapter.ConnectAsync("localhost", "CSIDE_DEMO");
+                if (!connected)
+                {
+                    logger.LogError("Не удалось подключиться к C/SIDE");
+                    return;
+                }
+
+                logger.LogInformation("Успешно подключено к C/SIDE");
+
+                // Экспорт C/SIDE объектов
+                await csideAdapter.ExportObjectsAsync(@"C:\cside_export.txt");
+                logger.LogInformation("Экспорт объектов завершен");
+                
+                // Компиляция C/SIDE объектов
+                await csideAdapter.CompileAllObjectsAsync();
+                logger.LogInformation("Компиляция объектов завершена");
+                
+                logger.LogInformation("C/SIDE демо завершено успешно");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Ошибка в C/SIDE демо");
+            }
+            finally
+            {
+                await csideAdapter.DisconnectAsync();
+                logger.LogInformation("Отключено от C/SIDE");
+            }
+        }
+    }
+}
+3. Альтернативная упрощенная версия DemoExample.cs
+Если все еще есть проблемы, используйте эту версию без DI:
+
+csharp
+using Microsoft.Extensions.Logging;
+using CSide.ComAdapter.Interfaces;
+using CSide.ComAdapter.Services;
+
+namespace CSide.ComAdapter.Examples
+{
+    public class DemoExample
+    {
+        public static async Task RunDemo()
+        {
+            // Создаем логгер вручную
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
+            
+            var logger = loggerFactory.CreateLogger<DemoExample>();
+            var csideAdapter = new CSideComAdapter(loggerFactory.CreateLogger<CSideComAdapter>());
+
+            try
+            {
+                logger.LogInformation("Запуск C/SIDE демо...");
+
+                // Подключение к C/SIDE
+                bool connected = await csideAdapter.ConnectAsync("localhost", "CSIDE_DEMO");
+                if (!connected)
+                {
+                    logger.LogError("Не удалось подключиться к C/SIDE");
+                    return;
+                }
+
+                logger.LogInformation("Успешно подключено к C/SIDE");
+
+                // Экспорт C/SIDE объектов
+                await csideAdapter.ExportObjectsAsync(@"C:\cside_export.txt");
+                logger.LogInformation("Экспорт объектов завершен");
+                
+                // Компиляция C/SIDE объектов
+                await csideAdapter.CompileAllObjectsAsync();
+                logger.LogInformation("Компиляция объектов завершена");
+                
+                logger.LogInformation("C/SIDE демо завершено успешно");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Ошибка в C/SIDE демо");
+            }
+            finally
+            {
+                await csideAdapter.DisconnectAsync();
+                logger.LogInformation("Отключено от C/SIDE");
+                csideAdapter.Dispose();
+            }
+        }
+    }
+}
+4. Проверяем файл проекта CSide.ComAdapter.csproj
+Убедитесь, что пакеты добавлены:
+
+xml
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>CSide.ComAdapter</AssemblyName>
+    <RootNamespace>CSide.ComAdapter</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>
+5. Восстанавливаем и пересобираем
+bash
+# Возвращаемся в корневую директорию solution
+cd ..
+
+# Восстанавливаем пакеты
+dotnet restore
+
+# Собираем проект
+dotnet build
+
+# Если есть ошибки, смотрим подробности
+dotnet build --verbosity normal
+6. Если ошибка persists - минимальная версия
+Создайте совсем простую версию без сложных зависимостей:
+
+csharp
+using CSide.ComAdapter.Interfaces;
+using CSide.ComAdapter.Services;
+
+namespace CSide.ComAdapter.Examples
+{
+    public class DemoExample
+    {
+        public static async Task RunDemo()
+        {
+            Console.WriteLine("Запуск C/SIDE демо...");
+            
+            // Создаем адаптер без логгера (будем использовать Console)
+            var csideAdapter = new CSideComAdapter(null);
+
+            try
+            {
+                // Подключение к C/SIDE
+                bool connected = await csideAdapter.ConnectAsync("localhost", "CSIDE_DEMO");
+                if (!connected)
+                {
+                    Console.WriteLine("Не удалось подключиться к C/SIDE");
+                    return;
+                }
+
+                Console.WriteLine("Успешно подключено к C/SIDE");
+
+                // Экспорт C/SIDE объектов
+                await csideAdapter.ExportObjectsAsync(@"C:\cside_export.txt");
+                Console.WriteLine("Экспорт объектов завершен");
+                
+                // Компиляция C/SIDE объектов
+                await csideAdapter.CompileAllObjectsAsync();
+                Console.WriteLine("Компиляция объектов завершена");
+                
+                Console.WriteLine("C/SIDE демо завершено успешно");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка в C/SIDE демо: {ex.Message}");
+            }
+            finally
+            {
+                await csideAdapter.DisconnectAsync();
+                Console.WriteLine("Отключено от C/SIDE");
+                csideAdapter.Dispose();
+            }
+        }
+    }
+}
+7. Обновляем CSideComAdapter для поддержки null логгера
+Добавьте в Services/CSideComAdapter.cs:
+
+csharp
+public CSideComAdapter(ILogger<CSideComAdapter> logger)
+{
+    _logger = logger;
+}
+
+// Добавьте проверки на null в методах:
+private void LogInformation(string message, params object[] args)
+{
+    _logger?.LogInformation(message, args);
+}
+
+private void LogError(Exception ex, string message, params object[] args)
+{
+    _logger?.LogError(ex, message, args);
+}
