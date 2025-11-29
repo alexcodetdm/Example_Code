@@ -3225,3 +3225,92 @@ json
         }
     ]
 }
+
+4. Быстрое решение - запуск без дебаггера
+Откройте терминал в VS Code (Ctrl+`) и выполните:
+bash
+# Сначала соберите проект
+msbuild CSideComAdapter.sln /p:Configuration=Debug /p:Platform="Any CPU"
+
+# Затем запустите
+./CSide.ComAdapter.Demo/bin/Debug/CSide.ComAdapter.Demo.exe
+5. Создайте упрощенный tasks.json
+.vscode/tasks.json:
+
+json
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "msbuild",
+            "args": [
+                "CSideComAdapter.sln",
+                "/p:Configuration=Debug",
+                "/p:Platform=\"Any CPU\""
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "CSide.ComAdapter.Demo/bin/Debug/CSide.ComAdapter.Demo.exe",
+            "group": "none",
+            "dependsOn": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always"
+            }
+        }
+    ]
+}
+6. Запуск через Command Palette
+Нажмите Ctrl+Shift+P
+
+Введите "Tasks: Run Task"
+
+Выберите "build" (дождитесь сборки)
+
+Снова Ctrl+Shift+P
+
+"Tasks: Run Task" → "run"
+
+7. Самый простой способ - создайте run.bat
+Создайте файл run.bat в корне проекта:
+
+bat
+@echo off
+echo Building C/SIDE Project...
+msbuild CSideComAdapter.sln /p:Configuration=Debug
+
+if %errorlevel% equ 0 (
+    echo Running Demo...
+    start CSide.ComAdapter.Demo\bin\Debug\CSide.ComAdapter.Demo.exe
+) else (
+    echo Build failed!
+    pause
+)
+Запустите в терминале VS Code:
+
+bash
+./run.bat
+8. Если все еще не работает - используйте прямой запуск
+bash
+# В терминале VS Code
+cd CSide.ComAdapter.Demo/bin/Debug
+./CSide.ComAdapter.Demo.exe
+cd ../../..
+9. Проверка структуры проекта
+Убедитесь, что файлы на месте:
+
+bash
+# В терминале VS Code
+ls -la CSide.ComAdapter.Demo/bin/Debug/
+
+# Должен быть файл CSide.ComAdapter.Demo.exe
